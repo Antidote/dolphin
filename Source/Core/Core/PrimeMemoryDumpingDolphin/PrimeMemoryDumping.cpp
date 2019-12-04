@@ -191,7 +191,7 @@ static std::mutex s_active_db_lock;
   }
 
   void handleWorldLoads() {
-    std::lock_guard<std::mutex> codes_lock(s_active_db_lock);
+    std::lock_guard<std::mutex> db_lock(s_active_db_lock);
     CGameGlobalObjects global(CGameGlobalObjects::LOCATION);
     CStateManager manager(CStateManager::LOCATION);
     if (!manager.ptr())
@@ -227,7 +227,8 @@ static std::mutex s_active_db_lock;
         if (newChain == EChain::Alive) {
           areaTracking.loadEnd = frame;
           int loadFrames = areaTracking.loadEnd - areaTracking.loadStart;
-          areaTracking.loadFrames.push_back(loadFrames);
+          if (loadFrames > 0)
+            areaTracking.loadFrames.push_back(loadFrames);
           WARN_LOG(PRIME, "%d: Area %x loaded in %d frames",
             frame,
             mrea,
@@ -265,7 +266,7 @@ static std::mutex s_active_db_lock;
 
   constexpr std::string_view db_name = "PrimeLoadDatabase.dat";
   void LoadDatabase() {
-      std::lock_guard<std::mutex> codes_lock(s_active_db_lock);
+      std::lock_guard<std::mutex> db_lock(s_active_db_lock);
       INFO_LOG(PRIME, "Loading Area Load Database");
       areas.clear();
       std::string db_path = File::GetUserPath(D_DUMP_IDX) + db_name.data();
@@ -284,13 +285,14 @@ static std::mutex s_active_db_lock;
           for (int j = 0; j < loadCount; ++j) {
               int frameCount;
               fread(&frameCount, 1, sizeof(int), file);
-              areas[areaId].loadFrames.push_back(frameCount);
+              if (frameCount > 0)
+                areas[areaId].loadFrames.push_back(frameCount);
           }
       }
       fclose(file);
   }
   void SaveDatabase() {
-      std::lock_guard<std::mutex> codes_lock(s_active_db_lock);
+      std::lock_guard<std::mutex> db_lock(s_active_db_lock);
       INFO_LOG(PRIME, "Saving Area Load Database");
       std::string db_path = File::GetUserPath(D_DUMP_IDX) + "~" + db_name.data();
       FILE* file = fopen(db_path.c_str(), "wb");
