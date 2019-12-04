@@ -268,6 +268,8 @@ void Shutdown()
   s_speed_hacks.clear();
   ActionReplay::ApplyCodes({});
   Gecko::Shutdown();
+  // Save our load database
+  PrimeMemoryDumping::SaveDatabase();
 }
 
 void Reload()

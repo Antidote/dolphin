@@ -142,7 +142,7 @@ LogManager::LogManager()
   m_log[VIDEOINTERFACE] = {"VI", "Video Interface"};
   m_log[WIIMOTE] = {"Wiimote", "Wiimote"};
   m_log[WII_IPC] = {"WII_IPC", "WII IPC"};
-  m_log[LogTypes::PRIME] = {"PRIME", "Metroid Prime"};
+  m_log[PRIME] = {"PRIME", "Metroid Prime"};
 
   RegisterListener(LogListener::FILE_LISTENER,
                    new FileLogListener(File::GetUserPath(F_MAINLOG_IDX)));
