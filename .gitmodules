@@ -4,4 +4,4 @@
 	branch = master
 [submodule "Source/Core/Core/PrimeMemoryDumping"]
 	path = Source/Core/Core/PrimeMemoryDumping
-	url = https://github.com/Pwootage/PrimeMemoryDumping.git
+	url = https://github.com/MetroidPrimeModding/PrimeMemoryDumping.git
