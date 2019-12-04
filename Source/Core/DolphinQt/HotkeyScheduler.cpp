@@ -25,6 +25,7 @@
 
 #include "DolphinQt/Settings.h"
 
+#include "InputCommon/ControlReference/ControlReference.h"
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
 
 #include "VideoCommon/OnScreenDisplay.h"
@@ -134,15 +135,21 @@ void HotkeyScheduler::Run()
   {
     Common::SleepCurrentThread(1000 / 60);
 
-    if (!HotkeyManagerEmu::IsEnabled())
-      continue;
-
     if (Core::GetState() == Core::State::Uninitialized || Core::GetState() == Core::State::Paused)
       g_controller_interface.UpdateInput();
 
+    if (!HotkeyManagerEmu::IsEnabled())
+      continue;
+
     if (Core::GetState() != Core::State::Stopping)
     {
+      // Obey window focus before checking hotkeys.
+      Core::UpdateInputGate();
+
       HotkeyManagerEmu::GetStatus();
+
+      // Everything else on the host thread (controller config dialog) should always get input.
+      ControlReference::SetInputGate(true);
 
       if (!Core::IsRunningAndStarted())
         continue;
@@ -248,6 +255,9 @@ void HotkeyScheduler::Run()
         if (wiimote_id > -1)
           emit ConnectWiiRemote(wiimote_id);
 
+        if (IsHotkey(HK_TOGGLE_SD_CARD))
+          Settings::Instance().SetSDCardInserted(!Settings::Instance().IsSDCardInserted());
+
         if (IsHotkey(HK_TOGGLE_USB_KEYBOARD))
         {
           Settings::Instance().SetUSBKeyboardConnected(
@@ -299,8 +309,7 @@ void HotkeyScheduler::Run()
         OSD::AddMessage(std::string("Volume: ") +
                         (SConfig::GetInstance().m_IsMuted ?
                              "Muted" :
-                             std::to_string(SConfig::GetInstance().m_Volume)) +
-                        "%");
+                             std::to_string(SConfig::GetInstance().m_Volume) + "%"));
       };
 
       // Volume
@@ -334,7 +343,7 @@ void HotkeyScheduler::Run()
           OSD::AddMessage("Internal Resolution: Native");
           break;
         default:
-          OSD::AddMessage("Internal Resolution: %dx", g_Config.iEFBScale);
+          OSD::AddMessage(StringFromFormat("Internal Resolution: %dx", g_Config.iEFBScale));
           break;
         }
       };
@@ -492,21 +501,6 @@ void HotkeyScheduler::Run()
         {
           Config::SetCurrent(Config::GFX_STEREO_MODE, StereoMode::Off);
           Config::SetCurrent(Config::GFX_ENHANCE_POST_SHADER, "");
-        }
-      }
-
-      if (IsHotkey(HK_TOGGLE_STEREO_3DVISION))
-      {
-        if (Config::Get(Config::GFX_STEREO_MODE) != StereoMode::Nvidia3DVision)
-        {
-          if (Config::Get(Config::GFX_ENHANCE_POST_SHADER) == DUBOIS_ALGORITHM_SHADER)
-            Config::SetCurrent(Config::GFX_ENHANCE_POST_SHADER, "");
-
-          Config::SetCurrent(Config::GFX_STEREO_MODE, StereoMode::Nvidia3DVision);
-        }
-        else
-        {
-          Config::SetCurrent(Config::GFX_STEREO_MODE, StereoMode::Off);
         }
       }
     }

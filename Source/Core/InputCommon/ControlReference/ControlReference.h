@@ -22,7 +22,9 @@
 class ControlReference
 {
 public:
-  static bool InputGateOn();
+  // Note: this is per thread.
+  static void SetInputGate(bool enable);
+  static bool GetInputGate();
 
   virtual ~ControlReference();
   virtual ControlState State(const ControlState state = 0) = 0;
@@ -30,8 +32,7 @@ public:
 
   int BoundCount() const;
   ciface::ExpressionParser::ParseStatus GetParseStatus() const;
-  void UpdateReference(const ciface::Core::DeviceContainer& devices,
-                       const ciface::Core::DeviceQualifier& default_device);
+  void UpdateReference(ciface::ExpressionParser::ControlEnvironment& env);
   std::string GetExpression() const;
   void SetExpression(std::string expr);
 

@@ -12,12 +12,12 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{E54CF649-140E-4255-81A5-30A673C1FB36}</ProjectGuid>
-    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
@@ -146,6 +146,7 @@
     <ClCompile Include="HW\EXI\EXI_DeviceMic.cpp" />
     <ClCompile Include="HW\GCKeyboard.cpp" />
     <ClCompile Include="HW\GCKeyboardEmu.cpp" />
+    <ClCompile Include="HW\GCMemcard\GCIFile.cpp" />
     <ClCompile Include="HW\GCMemcard\GCMemcard.cpp" />
     <ClCompile Include="HW\GCMemcard\GCMemcardDirectory.cpp" />
     <ClCompile Include="HW\GCMemcard\GCMemcardRaw.cpp" />
@@ -196,6 +197,7 @@
     <ClCompile Include="HW\WiiSave.cpp" />
     <ClCompile Include="IOS\Device.cpp" />
     <ClCompile Include="IOS\DeviceStub.cpp" />
+    <ClCompile Include="IOS\DolphinDevice.cpp" />
     <ClCompile Include="IOS\IOS.cpp" />
     <ClCompile Include="IOS\IOSC.cpp" />
     <ClCompile Include="IOS\MIOS.cpp" />
@@ -228,6 +230,9 @@
     <ClCompile Include="IOS\STM\STM.cpp" />
     <ClCompile Include="IOS\USB\Common.cpp" />
     <ClCompile Include="IOS\USB\LibusbDevice.cpp">
+      <DisableSpecificWarnings>4200;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+    </ClCompile>
+    <ClCompile Include="LibusbUtils.cpp">
       <DisableSpecificWarnings>4200;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <ClCompile Include="IOS\USB\Host.cpp">
@@ -419,6 +424,7 @@
     <ClInclude Include="HW\EXI\EXI_DeviceMic.h" />
     <ClInclude Include="HW\GCKeyboard.h" />
     <ClInclude Include="HW\GCKeyboardEmu.h" />
+    <ClInclude Include="HW\GCMemcard\GCIFile.h" />
     <ClInclude Include="HW\GCMemcard\GCMemcard.h" />
     <ClInclude Include="HW\GCMemcard\GCMemcardDirectory.h" />
     <ClInclude Include="HW\GCMemcard\GCMemcardRaw.h" />
@@ -473,6 +479,7 @@
     <ClInclude Include="HW\WII_IPC.h" />
     <ClInclude Include="IOS\Device.h" />
     <ClInclude Include="IOS\DeviceStub.h" />
+    <ClInclude Include="IOS\DolphinDevice.h" />
     <ClInclude Include="IOS\IOS.h" />
     <ClInclude Include="IOS\IOSC.h" />
     <ClInclude Include="IOS\MIOS.h" />
@@ -500,6 +507,7 @@
     <ClInclude Include="IOS\STM\STM.h" />
     <ClInclude Include="IOS\USB\Common.h" />
     <ClInclude Include="IOS\USB\LibusbDevice.h" />
+    <ClInclude Include="LibusbUtils.h" />
     <ClInclude Include="IOS\USB\Host.h" />
     <ClInclude Include="IOS\USB\OH0\OH0.h" />
     <ClInclude Include="IOS\USB\OH0\OH0Device.h" />

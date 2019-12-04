@@ -33,13 +33,11 @@ public:
 
   void SetCalibrationWidget(CalibrationWidget* widget);
 
-protected:
-  WiimoteEmu::MotionState m_motion_state{};
-
   QPen GetBBoxPen() const;
   QBrush GetBBoxBrush() const;
   QColor GetRawInputColor() const;
   QPen GetInputShapePen() const;
+  QColor GetCenterColor() const;
   QColor GetAdjustedInputColor() const;
   QColor GetDeadZoneColor() const;
   QPen GetDeadZonePen() const;
@@ -48,7 +46,10 @@ protected:
   QColor GetAltTextColor() const;
   QColor GetGateColor() const;
 
+protected:
   double GetScale() const;
+
+  WiimoteEmu::MotionState m_motion_state{};
 
 private:
   void DrawCursor(ControllerEmu::Cursor& cursor);
@@ -81,6 +82,28 @@ private:
   ControllerEmu::Shake& m_shake_group;
 };
 
+class AccelerometerMappingIndicator : public MappingIndicator
+{
+public:
+  explicit AccelerometerMappingIndicator(ControllerEmu::IMUAccelerometer* group);
+  void paintEvent(QPaintEvent*) override;
+
+private:
+  ControllerEmu::IMUAccelerometer& m_accel_group;
+};
+
+class GyroMappingIndicator : public MappingIndicator
+{
+public:
+  explicit GyroMappingIndicator(ControllerEmu::IMUGyroscope* group);
+  void paintEvent(QPaintEvent*) override;
+
+private:
+  ControllerEmu::IMUGyroscope& m_gyro_group;
+  Common::Matrix33 m_state;
+  u32 m_stable_steps = 0;
+};
+
 class CalibrationWidget : public QToolButton
 {
 public:
@@ -89,6 +112,8 @@ public:
   void Update(Common::DVec2 point);
 
   double GetCalibrationRadiusAtAngle(double angle) const;
+
+  Common::DVec2 GetCenter() const;
 
   bool IsCalibrating() const;
 
@@ -101,4 +126,7 @@ private:
   QAction* m_completion_action;
   ControllerEmu::ReshapableInput::CalibrationData m_calibration_data;
   QTimer* m_informative_timer;
+
+  bool m_is_centering = false;
+  Common::DVec2 m_new_center;
 };

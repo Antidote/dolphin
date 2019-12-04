@@ -32,6 +32,7 @@
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HW/DVD/DVDInterface.h"
+#include "Core/HW/EXI/EXI_Device.h"
 #include "Core/HW/WiiSave.h"
 #include "Core/WiiUtils.h"
 
@@ -281,7 +282,7 @@ void GameList::ShowContextMenu(const QPoint&)
 
     if (wii_saves)
     {
-      menu->addAction(tr("Export Wii Saves (Experimental)"), this, &GameList::ExportWiiSave);
+      menu->addAction(tr("Export Wii Saves"), this, &GameList::ExportWiiSave);
       menu->addSeparator();
     }
 
@@ -357,7 +358,7 @@ void GameList::ShowContextMenu(const QPoint&)
     if (platform == DiscIO::Platform::WiiWAD || platform == DiscIO::Platform::WiiDisc)
     {
       menu->addAction(tr("Open Wii &Save Folder"), this, &GameList::OpenWiiSaveFolder);
-      menu->addAction(tr("Export Wii Save (Experimental)"), this, &GameList::ExportWiiSave);
+      menu->addAction(tr("Export Wii Save"), this, &GameList::ExportWiiSave);
       menu->addSeparator();
     }
 
@@ -441,14 +442,14 @@ void GameList::ExportWiiSave()
   for (const auto& game : GetSelectedGames())
   {
     if (!WiiSave::Export(game->GetTitleID(), export_dir.toStdString()))
-      failed.push_back(game->GetName());
+      failed.push_back(game->GetName(UICommon::GameFile::Variant::LongAndPossiblyCustom));
   }
 
   if (!failed.isEmpty())
   {
     QString failed_str;
     for (const std::string& str : failed)
-      failed_str.append(QStringLiteral("\n")).append(QString::fromStdString(str));
+      failed_str.append(QLatin1Char{'\n'}).append(QString::fromStdString(str));
     ModalMessageBox::critical(this, tr("Save Export"),
                               tr("Failed to export the following save files:") + failed_str);
   }
@@ -578,7 +579,7 @@ void GameList::CompressISO(bool decompress)
     if (decompress)
     {
       if (files.size() > 1)
-        progress_dialog.setLabelText(tr("Decompressing...") + QStringLiteral("\n") +
+        progress_dialog.setLabelText(tr("Decompressing...") + QLatin1Char{'\n'} +
                                      QFileInfo(QString::fromStdString(original_path)).fileName());
       good = DiscIO::DecompressBlobToFile(original_path, dst_path.toStdString(), &CompressCB,
                                           &progress_dialog);
@@ -586,7 +587,7 @@ void GameList::CompressISO(bool decompress)
     else
     {
       if (files.size() > 1)
-        progress_dialog.setLabelText(tr("Compressing...") + QStringLiteral("\n") +
+        progress_dialog.setLabelText(tr("Compressing...") + QLatin1Char{'\n'} +
                                      QFileInfo(QString::fromStdString(original_path)).fileName());
       good = DiscIO::CompressFileToBlob(original_path, dst_path.toStdString(),
                                         file->GetPlatform() == DiscIO::Platform::WiiDisc ? 1 : 0,

@@ -22,6 +22,8 @@
 #include <utility>
 #include <vector>
 
+#include <fmt/format.h>
+
 #include "Common/Align.h"
 #include "Common/CommonTypes.h"
 #include "Common/Crypto/ec.h"
@@ -92,7 +94,7 @@ public:
     header.banner[7] &= ~1;
 
     Md5 md5_calc;
-    mbedtls_md5(reinterpret_cast<const u8*>(&header), sizeof(Header), md5_calc.data());
+    mbedtls_md5_ret(reinterpret_cast<const u8*>(&header), sizeof(Header), md5_calc.data());
     header.md5 = std::move(md5_calc);
     return header;
   }
@@ -264,7 +266,7 @@ public:
     Md5 md5_file = header.md5;
     header.md5 = s_md5_blanker;
     Md5 md5_calc;
-    mbedtls_md5(reinterpret_cast<const u8*>(&header), sizeof(Header), md5_calc.data());
+    mbedtls_md5_ret(reinterpret_cast<const u8*>(&header), sizeof(Header), md5_calc.data());
     if (md5_file != md5_calc)
     {
       ERROR_LOG(CONSOLE, "MD5 mismatch\n %016" PRIx64 "%016" PRIx64 " != %016" PRIx64 "%016" PRIx64,
@@ -411,7 +413,7 @@ private:
       m_file.Seek(sizeof(Header), SEEK_SET);
       if (!m_file.ReadBytes(data.get(), data_size))
         return false;
-      mbedtls_sha1(data.get(), data_size, data_sha1.data());
+      mbedtls_sha1_ret(data.get(), data_size, data_sha1.data());
     }
 
     // Sign the data.
@@ -478,22 +480,22 @@ bool Import(const std::string& data_bin_path, std::function<bool()> can_overwrit
   return Copy(data_bin.get(), nand.get());
 }
 
-static bool Export(u64 tid, const std::string& export_path, IOS::HLE::Kernel* ios)
+static bool Export(u64 tid, std::string_view export_path, IOS::HLE::Kernel* ios)
 {
-  std::string path = StringFromFormat("%s/private/wii/title/%c%c%c%c/data.bin", export_path.c_str(),
-                                      static_cast<char>(tid >> 24), static_cast<char>(tid >> 16),
-                                      static_cast<char>(tid >> 8), static_cast<char>(tid));
+  const std::string path = fmt::format("{}/private/wii/title/{}{}{}{}/data.bin", export_path,
+                                       static_cast<char>(tid >> 24), static_cast<char>(tid >> 16),
+                                       static_cast<char>(tid >> 8), static_cast<char>(tid));
   return Copy(MakeNandStorage(ios->GetFS().get(), tid).get(),
               MakeDataBinStorage(&ios->GetIOSC(), path, "w+b").get());
 }
 
-bool Export(u64 tid, const std::string& export_path)
+bool Export(u64 tid, std::string_view export_path)
 {
   IOS::HLE::Kernel ios;
   return Export(tid, export_path, &ios);
 }
 
-size_t ExportAll(const std::string& export_path)
+size_t ExportAll(std::string_view export_path)
 {
   IOS::HLE::Kernel ios;
   size_t exported_save_count = 0;

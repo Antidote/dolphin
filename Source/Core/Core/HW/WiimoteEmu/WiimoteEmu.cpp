@@ -8,10 +8,11 @@
 #include <cassert>
 #include <memory>
 
-#include "Common/BitUtils.h"
-#include "Common/ChunkFile.h"
+#include <fmt/format.h>
+
 #include "Common/CommonTypes.h"
 #include "Common/Config/Config.h"
+#include "Common/FileUtil.h"
 #include "Common/Logging/Log.h"
 #include "Common/MathUtil.h"
 #include "Common/MsgHandler.h"
@@ -41,6 +42,9 @@
 #include "InputCommon/ControllerEmu/ControlGroup/ControlGroup.h"
 #include "InputCommon/ControllerEmu/ControlGroup/Cursor.h"
 #include "InputCommon/ControllerEmu/ControlGroup/Force.h"
+#include "InputCommon/ControllerEmu/ControlGroup/IMUAccelerometer.h"
+#include "InputCommon/ControllerEmu/ControlGroup/IMUCursor.h"
+#include "InputCommon/ControllerEmu/ControlGroup/IMUGyroscope.h"
 #include "InputCommon/ControllerEmu/ControlGroup/ModifySettingsButton.h"
 #include "InputCommon/ControllerEmu/ControlGroup/Tilt.h"
 
@@ -74,34 +78,86 @@ void Wiimote::Reset()
   m_speaker_mute = false;
 
   // EEPROM
+  std::string eeprom_file = (File::GetUserPath(D_SESSION_WIIROOT_IDX) + "/" + GetName() + ".bin");
+  if (m_eeprom_dirty)
+  {
+    // Write out existing EEPROM
+    INFO_LOG(WIIMOTE, "Wrote EEPROM for %s", GetName().c_str());
+    std::ofstream file;
+    File::OpenFStream(file, eeprom_file, std::ios::binary | std::ios::out);
+    file.write(reinterpret_cast<char*>(m_eeprom.data.data()), EEPROM_FREE_SIZE);
+    file.close();
+
+    m_eeprom_dirty = false;
+  }
   m_eeprom = {};
 
-  // IR calibration and maybe more unknown purposes:
-  // The meaning of this data needs more investigation.
-  // Last byte is a checksum.
-  std::array<u8, 11> ir_calibration = {
-      0xA1, 0xAA, 0x8B, 0x99, 0xAE, 0x9E, 0x78, 0x30, 0xA7, 0x74, 0x00,
-  };
-  // Purposely not updating checksum because using this data results in a weird IR offset..
-  // UpdateCalibrationDataChecksum(ir_calibration, 1);
-  m_eeprom.ir_calibration_1 = ir_calibration;
-  m_eeprom.ir_calibration_2 = ir_calibration;
+  if (File::Exists(eeprom_file))
+  {
+    // Read existing EEPROM
+    std::ifstream file;
+    File::OpenFStream(file, eeprom_file, std::ios::binary | std::ios::in);
+    file.read(reinterpret_cast<char*>(m_eeprom.data.data()), EEPROM_FREE_SIZE);
+    file.close();
+  }
+  else
+  {
+    // Load some default data.
 
-  // Accel calibration:
-  // Last byte is a checksum.
-  std::array<u8, 10> accel_calibration = {
-      ACCEL_ZERO_G, ACCEL_ZERO_G, ACCEL_ZERO_G, 0, ACCEL_ONE_G, ACCEL_ONE_G, ACCEL_ONE_G, 0, 0, 0,
-  };
-  UpdateCalibrationDataChecksum(accel_calibration, 1);
-  m_eeprom.accel_calibration_1 = accel_calibration;
-  m_eeprom.accel_calibration_2 = accel_calibration;
+    // IR calibration:
+    std::array<u8, 11> ir_calibration = {
+        // Point 1
+        IR_LOW_X & 0xFF,
+        IR_LOW_Y & 0xFF,
+        // Mix
+        ((IR_LOW_Y & 0x300) >> 2) | ((IR_LOW_X & 0x300) >> 4) | ((IR_LOW_Y & 0x300) >> 6) |
+            ((IR_HIGH_X & 0x300) >> 8),
+        // Point 2
+        IR_HIGH_X & 0xFF,
+        IR_LOW_Y & 0xFF,
+        // Point 3
+        IR_HIGH_X & 0xFF,
+        IR_HIGH_Y & 0xFF,
+        // Mix
+        ((IR_HIGH_Y & 0x300) >> 2) | ((IR_HIGH_X & 0x300) >> 4) | ((IR_HIGH_Y & 0x300) >> 6) |
+            ((IR_LOW_X & 0x300) >> 8),
+        // Point 4
+        IR_LOW_X & 0xFF,
+        IR_HIGH_Y & 0xFF,
+        // Checksum
+        0x00,
+    };
+    UpdateCalibrationDataChecksum(ir_calibration, 1);
+    m_eeprom.ir_calibration_1 = ir_calibration;
+    m_eeprom.ir_calibration_2 = ir_calibration;
 
-  // TODO: Is this needed?
-  // Data of unknown purpose:
-  constexpr std::array<u8, 24> EEPROM_DATA_16D0 = {0x00, 0x00, 0x00, 0xFF, 0x11, 0xEE, 0x00, 0x00,
-                                                   0x33, 0xCC, 0x44, 0xBB, 0x00, 0x00, 0x66, 0x99,
-                                                   0x77, 0x88, 0x00, 0x00, 0x2B, 0x01, 0xE8, 0x13};
-  m_eeprom.unk_2 = EEPROM_DATA_16D0;
+    // Accel calibration:
+    // Last byte is a checksum.
+    std::array<u8, 10> accel_calibration = {
+        ACCEL_ZERO_G, ACCEL_ZERO_G, ACCEL_ZERO_G, 0, ACCEL_ONE_G, ACCEL_ONE_G, ACCEL_ONE_G, 0, 0, 0,
+    };
+    UpdateCalibrationDataChecksum(accel_calibration, 1);
+    m_eeprom.accel_calibration_1 = accel_calibration;
+    m_eeprom.accel_calibration_2 = accel_calibration;
+
+    // TODO: Is this needed?
+    // Data of unknown purpose:
+    constexpr std::array<u8, 24> EEPROM_DATA_16D0 = {
+        0x00, 0x00, 0x00, 0xFF, 0x11, 0xEE, 0x00, 0x00, 0x33, 0xCC, 0x44, 0xBB,
+        0x00, 0x00, 0x66, 0x99, 0x77, 0x88, 0x00, 0x00, 0x2B, 0x01, 0xE8, 0x13};
+    m_eeprom.unk_2 = EEPROM_DATA_16D0;
+
+    std::string mii_file = File::GetUserPath(D_SESSION_WIIROOT_IDX) + "/mii.bin";
+    if (File::Exists(mii_file))
+    {
+      // Import from the existing mii.bin file, if present
+      std::ifstream file;
+      File::OpenFStream(file, mii_file, std::ios::binary | std::ios::in);
+      file.read(reinterpret_cast<char*>(m_eeprom.mii_data_1.data()), m_eeprom.mii_data_1.size());
+      m_eeprom.mii_data_2 = m_eeprom.mii_data_1;
+      file.close();
+    }
+  }
 
   m_read_request = {};
 
@@ -134,6 +190,7 @@ void Wiimote::Reset()
   m_tilt_state = {};
   m_cursor_state = {};
   m_shake_state = {};
+  m_imu_cursor_state = {};
 }
 
 Wiimote::Wiimote(const unsigned int index) : m_index(index)
@@ -153,6 +210,11 @@ Wiimote::Wiimote(const unsigned int index) : m_index(index)
   groups.emplace_back(m_swing = new ControllerEmu::Force(_trans("Swing")));
   groups.emplace_back(m_tilt = new ControllerEmu::Tilt(_trans("Tilt")));
   groups.emplace_back(m_shake = new ControllerEmu::Shake(_trans("Shake")));
+  groups.emplace_back(m_imu_accelerometer = new ControllerEmu::IMUAccelerometer(
+                          "IMUAccelerometer", _trans("Accelerometer")));
+  groups.emplace_back(m_imu_gyroscope =
+                          new ControllerEmu::IMUGyroscope("IMUGyroscope", _trans("Gyroscope")));
+  groups.emplace_back(m_imu_ir = new ControllerEmu::IMUCursor("IMUIR", _trans("Point")));
 
   // Extension
   groups.emplace_back(m_attachments = new ControllerEmu::Attachments(_trans("Extension")));
@@ -220,7 +282,9 @@ Wiimote::Wiimote(const unsigned int index) : m_index(index)
 
 std::string Wiimote::GetName() const
 {
-  return StringFromFormat("Wiimote%d", 1 + m_index);
+  if (m_index == WIIMOTE_BALANCE_BOARD)
+    return "BalanceBoard";
+  return fmt::format("Wiimote{}", 1 + m_index);
 }
 
 ControllerEmu::ControlGroup* Wiimote::GetWiimoteGroup(WiimoteGroup group)
@@ -247,6 +311,12 @@ ControllerEmu::ControlGroup* Wiimote::GetWiimoteGroup(WiimoteGroup group)
     return m_options;
   case WiimoteGroup::Hotkeys:
     return m_hotkeys;
+  case WiimoteGroup::IMUAccelerometer:
+    return m_imu_accelerometer;
+  case WiimoteGroup::IMUGyroscope:
+    return m_imu_gyroscope;
+  case WiimoteGroup::IMUPoint:
+    return m_imu_ir;
   default:
     assert(false);
     return nullptr;
@@ -431,7 +501,7 @@ void Wiimote::SendDataReport()
     {
       // Calibration values are 8-bit but we want 10-bit precision, so << 2.
       DataReportBuilder::AccelData accel =
-          ConvertAccelData(GetAcceleration(), ACCEL_ZERO_G << 2, ACCEL_ONE_G << 2);
+          ConvertAccelData(GetTotalAcceleration(), ACCEL_ZERO_G << 2, ACCEL_ONE_G << 2);
       rpt_builder.SetAccelData(accel);
     }
 
@@ -440,7 +510,7 @@ void Wiimote::SendDataReport()
     {
       // Note: Camera logic currently contains no changing state so we can just update it here.
       // If that changes this should be moved to Wiimote::Update();
-      m_camera_logic.Update(GetTransformation());
+      m_camera_logic.Update(GetTotalTransformation());
 
       // The real wiimote reads camera data from the i2c bus starting at offset 0x37:
       const u8 camera_data_offset =
@@ -461,7 +531,7 @@ void Wiimote::SendDataReport()
       if (m_is_motion_plus_attached)
       {
         // TODO: Make input preparation triggered by bus read.
-        m_motion_plus.PrepareInput(GetAngularVelocity());
+        m_motion_plus.PrepareInput(GetTotalAngularVelocity());
       }
 
       u8* ext_data = rpt_builder.GetExtDataPtr();
@@ -502,7 +572,7 @@ void Wiimote::SendDataReport()
 void Wiimote::ControlChannel(const u16 channel_id, const void* data, u32 size)
 {
   // Check for custom communication
-  if (99 == channel_id)
+  if (channel_id == ::Wiimote::DOLPHIN_DISCONNET_CONTROL_CHANNEL)
   {
     // Wii Remote disconnected.
     Reset();
@@ -654,6 +724,20 @@ void Wiimote::LoadDefaults(const ControllerInterface& ciface)
   m_dpad->SetControlExpression(3, "Right");  // Right
 #endif
 
+  // Motion Source
+  m_imu_accelerometer->SetControlExpression(0, "Accel Left");
+  m_imu_accelerometer->SetControlExpression(1, "Accel Right");
+  m_imu_accelerometer->SetControlExpression(2, "Accel Forward");
+  m_imu_accelerometer->SetControlExpression(3, "Accel Backward");
+  m_imu_accelerometer->SetControlExpression(4, "Accel Up");
+  m_imu_accelerometer->SetControlExpression(5, "Accel Down");
+  m_imu_gyroscope->SetControlExpression(0, "Gyro Pitch Up");
+  m_imu_gyroscope->SetControlExpression(1, "Gyro Pitch Down");
+  m_imu_gyroscope->SetControlExpression(2, "Gyro Roll Left");
+  m_imu_gyroscope->SetControlExpression(3, "Gyro Roll Right");
+  m_imu_gyroscope->SetControlExpression(4, "Gyro Yaw Left");
+  m_imu_gyroscope->SetControlExpression(5, "Gyro Yaw Right");
+
   // Enable Nunchuk:
   constexpr ExtensionNumber DEFAULT_EXT = ExtensionNumber::NUNCHUK;
   m_attachments->SetSelectedAttachment(DEFAULT_EXT);
@@ -704,40 +788,28 @@ void Wiimote::StepDynamics()
   EmulateTilt(&m_tilt_state, m_tilt, 1.f / ::Wiimote::UPDATE_FREQ);
   EmulateCursor(&m_cursor_state, m_ir, 1.f / ::Wiimote::UPDATE_FREQ);
   EmulateShake(&m_shake_state, m_shake, 1.f / ::Wiimote::UPDATE_FREQ);
+  EmulateIMUCursor(&m_imu_cursor_state, m_imu_ir, m_imu_accelerometer, m_imu_gyroscope,
+                   1.f / ::Wiimote::UPDATE_FREQ);
 }
 
-Common::Vec3 Wiimote::GetAcceleration()
+Common::Vec3 Wiimote::GetAcceleration(Common::Vec3 extra_acceleration)
 {
-  Common::Vec3 accel =
-      GetOrientation() *
-      GetTransformation().Transform(
-          m_swing_state.acceleration + Common::Vec3(0, 0, float(GRAVITY_ACCELERATION)), 0);
+  Common::Vec3 accel = GetOrientation() * GetTransformation().Transform(
+                                              m_swing_state.acceleration + extra_acceleration, 0);
 
   // Our shake effects have never been affected by orientation. Should they be?
   accel += m_shake_state.acceleration;
 
-  // Simulate centripetal acceleration caused by an offset of the accelerometer sensor.
-  // Estimate of sensor position based on an image of the wii remote board:
-  constexpr float ACCELEROMETER_Y_OFFSET = 0.1f;
-
-  const auto angular_velocity = GetAngularVelocity();
-  const auto centripetal_accel =
-      // TODO: Is this the proper way to combine the x and z angular velocities?
-      std::pow(std::abs(angular_velocity.x) + std::abs(angular_velocity.z), 2) *
-      ACCELEROMETER_Y_OFFSET;
-
-  accel.y += centripetal_accel;
-
   return accel;
 }
 
-Common::Vec3 Wiimote::GetAngularVelocity()
+Common::Vec3 Wiimote::GetAngularVelocity(Common::Vec3 extra_angular_velocity)
 {
   return GetOrientation() * (m_tilt_state.angular_velocity + m_swing_state.angular_velocity +
-                             m_cursor_state.angular_velocity);
+                             m_cursor_state.angular_velocity + extra_angular_velocity);
 }
 
-Common::Matrix44 Wiimote::GetTransformation() const
+Common::Matrix44 Wiimote::GetTransformation(Common::Vec3 extra_rotation) const
 {
   // Includes positional and rotational effects of:
   // Cursor, Swing, Tilt, Shake
@@ -745,7 +817,7 @@ Common::Matrix44 Wiimote::GetTransformation() const
   // TODO: Think about and clean up matrix order + make nunchuk match.
   return Common::Matrix44::Translate(-m_shake_state.position) *
          Common::Matrix44::FromMatrix33(GetRotationalMatrix(
-             -m_tilt_state.angle - m_swing_state.angle - m_cursor_state.angle)) *
+             -m_tilt_state.angle - m_swing_state.angle - m_cursor_state.angle - extra_rotation)) *
          Common::Matrix44::Translate(-m_swing_state.position - m_cursor_state.position);
 }
 
@@ -753,6 +825,33 @@ Common::Matrix33 Wiimote::GetOrientation() const
 {
   return Common::Matrix33::RotateZ(float(MathUtil::TAU / -4 * IsSideways())) *
          Common::Matrix33::RotateX(float(MathUtil::TAU / 4 * IsUpright()));
+}
+
+Common::Vec3 Wiimote::GetTotalAcceleration()
+{
+  auto accel = m_imu_accelerometer->GetState();
+  if (accel.has_value())
+    return GetAcceleration(accel.value());
+  else
+    return GetAcceleration();
+}
+
+Common::Vec3 Wiimote::GetTotalAngularVelocity()
+{
+  auto ang_vel = m_imu_gyroscope->GetState();
+  if (ang_vel.has_value())
+    return GetAngularVelocity(ang_vel.value());
+  else
+    return GetAngularVelocity();
+}
+
+Common::Matrix44 Wiimote::GetTotalTransformation() const
+{
+  auto state = m_imu_cursor_state;
+  if (state.has_value())
+    return GetTransformation(state->angle);
+  else
+    return GetTransformation();
 }
 
 }  // namespace WiimoteEmu

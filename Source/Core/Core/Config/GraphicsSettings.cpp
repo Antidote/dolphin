@@ -50,7 +50,7 @@ const ConfigInfo<std::string> GFX_DUMP_FORMAT{{System::GFX, "Settings", "DumpFor
 const ConfigInfo<std::string> GFX_DUMP_CODEC{{System::GFX, "Settings", "DumpCodec"}, ""};
 const ConfigInfo<std::string> GFX_DUMP_ENCODER{{System::GFX, "Settings", "DumpEncoder"}, ""};
 const ConfigInfo<std::string> GFX_DUMP_PATH{{System::GFX, "Settings", "DumpPath"}, ""};
-const ConfigInfo<int> GFX_BITRATE_KBPS{{System::GFX, "Settings", "BitrateKbps"}, 2500};
+const ConfigInfo<int> GFX_BITRATE_KBPS{{System::GFX, "Settings", "BitrateKbps"}, 25000};
 const ConfigInfo<bool> GFX_INTERNAL_RESOLUTION_FRAME_DUMPS{
     {System::GFX, "Settings", "InternalResolutionFrameDumps"}, false};
 const ConfigInfo<bool> GFX_ENABLE_GPU_TEXTURE_DECODING{
@@ -75,13 +75,15 @@ const ConfigInfo<bool> GFX_ENABLE_VALIDATION_LAYER{
 #if defined(ANDROID)
 const ConfigInfo<bool> GFX_BACKEND_MULTITHREADING{
     {System::GFX, "Settings", "BackendMultithreading"}, false};
+const ConfigInfo<int> GFX_COMMAND_BUFFER_EXECUTE_INTERVAL{
+    {System::GFX, "Settings", "CommandBufferExecuteInterval"}, 0};
 #else
 const ConfigInfo<bool> GFX_BACKEND_MULTITHREADING{
     {System::GFX, "Settings", "BackendMultithreading"}, true};
-#endif
-
 const ConfigInfo<int> GFX_COMMAND_BUFFER_EXECUTE_INTERVAL{
     {System::GFX, "Settings", "CommandBufferExecuteInterval"}, 100};
+#endif
+
 const ConfigInfo<bool> GFX_SHADER_CACHE{{System::GFX, "Settings", "ShaderCache"}, true};
 const ConfigInfo<bool> GFX_WAIT_FOR_SHADERS_BEFORE_STARTING{
     {System::GFX, "Settings", "WaitForShadersBeforeStarting"}, false};
@@ -91,6 +93,8 @@ const ConfigInfo<int> GFX_SHADER_COMPILER_THREADS{
     {System::GFX, "Settings", "ShaderCompilerThreads"}, 1};
 const ConfigInfo<int> GFX_SHADER_PRECOMPILER_THREADS{
     {System::GFX, "Settings", "ShaderPrecompilerThreads"}, 1};
+const ConfigInfo<bool> GFX_SAVE_TEXTURE_CACHE_TO_STATE{
+    {System::GFX, "Settings", "SaveTextureCacheToState"}, true};
 
 const ConfigInfo<bool> GFX_SW_ZCOMPLOC{{System::GFX, "Settings", "SWZComploc"}, true};
 const ConfigInfo<bool> GFX_SW_ZFREEZE{{System::GFX, "Settings", "SWZFreeze"}, true};

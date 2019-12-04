@@ -92,6 +92,9 @@ void CodeViewWidget::FontBasedSizing()
 
 void CodeViewWidget::Update()
 {
+  if (!isVisible())
+    return;
+
   if (m_updating)
     return;
 
@@ -121,8 +124,8 @@ void CodeViewWidget::Update()
 
   for (int i = 0; i < rowCount(); i++)
   {
-    u32 addr = m_address - ((rowCount() / 2) * 4) + i * 4;
-    u32 color = PowerPC::debug_interface.GetColor(addr);
+    const u32 addr = m_address - ((rowCount() / 2) * 4) + i * 4;
+    const u32 color = PowerPC::debug_interface.GetColor(addr);
     auto* bp_item = new QTableWidgetItem;
     auto* addr_item = new QTableWidgetItem(QStringLiteral("%1").arg(addr, 8, 16, QLatin1Char('0')));
 
@@ -419,7 +422,7 @@ void CodeViewWidget::OnSelectionChanged()
   }
   else if (!styleSheet().isEmpty())
   {
-    setStyleSheet(QStringLiteral(""));
+    setStyleSheet(QString{});
   }
 }
 
@@ -566,6 +569,11 @@ void CodeViewWidget::mousePressEvent(QMouseEvent* event)
   default:
     break;
   }
+}
+
+void CodeViewWidget::showEvent(QShowEvent* event)
+{
+  Update();
 }
 
 void CodeViewWidget::ToggleBreakpoint()

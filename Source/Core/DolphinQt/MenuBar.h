@@ -37,7 +37,6 @@ public:
 
   explicit MenuBar(QWidget* parent = nullptr);
 
-  void UpdateStateSlotMenu();
   void UpdateToolsMenu(bool emulation_started);
 
   QMenu* GetListColumnsMenu() const { return m_cols_menu; }
@@ -140,6 +139,8 @@ private:
   void AddJITMenu();
   void AddSymbolsMenu();
 
+  void UpdateStateSlotMenu();
+
   void InstallWAD();
   void ImportWiiSave();
   void ExportWiiSaves();
@@ -174,6 +175,8 @@ private:
   void OnReadOnlyModeChanged(bool read_only);
   void OnDebugModeToggled(bool enabled);
 
+  QString GetSignatureSelector() const;
+
   static QPointer<MenuBar> s_menu_bar;
 
   // File
@@ -191,6 +194,7 @@ private:
   QAction* m_ntscj_ipl;
   QAction* m_ntscu_ipl;
   QAction* m_pal_ipl;
+  QMenu* m_manage_nand_menu;
   QAction* m_import_backup;
   QAction* m_check_nand;
   QAction* m_extract_certificates;
@@ -257,4 +261,6 @@ private:
   QAction* m_jit_paired_off;
   QAction* m_jit_systemregisters_off;
   QAction* m_jit_branch_off;
+
+  bool m_game_selected = false;
 };

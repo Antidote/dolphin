@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include <fmt/format.h>
+
 #include "Common/Common.h"
 #include "Common/MathUtil.h"
 #include "Common/Matrix.h"
@@ -19,6 +21,9 @@ namespace
 constexpr auto CALIBRATION_CONFIG_NAME = "Calibration";
 constexpr auto CALIBRATION_DEFAULT_VALUE = 1.0;
 constexpr auto CALIBRATION_CONFIG_SCALE = 100;
+
+constexpr auto CENTER_CONFIG_NAME = "Center";
+constexpr auto CENTER_CONFIG_SCALE = 100;
 
 // Calculate distance to intersection of a ray with a line defined by two points.
 double GetRayLineIntersection(Common::DVec2 ray, Common::DVec2 point1, Common::DVec2 point2)
@@ -214,6 +219,16 @@ void ReshapableInput::SetCalibrationData(CalibrationData data)
   m_calibration = std::move(data);
 }
 
+const ReshapableInput::ReshapeData& ReshapableInput::GetCenter() const
+{
+  return m_center;
+}
+
+void ReshapableInput::SetCenter(ReshapableInput::ReshapeData center)
+{
+  m_center = center;
+}
+
 void ReshapableInput::LoadConfig(IniFile::Section* section, const std::string& default_device,
                                  const std::string& base_name)
 {
@@ -232,6 +247,20 @@ void ReshapableInput::LoadConfig(IniFile::Section* section, const std::string& d
     if (TryParse(*(it++), &sample))
       sample /= CALIBRATION_CONFIG_SCALE;
   }
+
+  section->Get(group + CENTER_CONFIG_NAME, &load_str, "");
+  const auto center_data = SplitString(load_str, ' ');
+
+  m_center = Common::DVec2();
+
+  if (center_data.size() == 2)
+  {
+    if (TryParse(center_data[0], &m_center.x))
+      m_center.x /= CENTER_CONFIG_SCALE;
+
+    if (TryParse(center_data[1], &m_center.y))
+      m_center.y /= CENTER_CONFIG_SCALE;
+  }
 }
 
 void ReshapableInput::SaveConfig(IniFile::Section* section, const std::string& default_device,
@@ -243,13 +272,21 @@ void ReshapableInput::SaveConfig(IniFile::Section* section, const std::string& d
   std::vector<std::string> save_data(m_calibration.size());
   std::transform(
       m_calibration.begin(), m_calibration.end(), save_data.begin(),
-      [](ControlState val) { return StringFromFormat("%.2f", val * CALIBRATION_CONFIG_SCALE); });
+      [](ControlState val) { return fmt::format("{:.2f}", val * CALIBRATION_CONFIG_SCALE); });
   section->Set(group + CALIBRATION_CONFIG_NAME, JoinStrings(save_data, " "), "");
+
+  const auto center_data = fmt::format("{:.2f} {:.2f}", m_center.x * CENTER_CONFIG_SCALE,
+                                       m_center.y * CENTER_CONFIG_SCALE);
+
+  section->Set(group + CENTER_CONFIG_NAME, center_data, "");
 }
 
 ReshapableInput::ReshapeData ReshapableInput::Reshape(ControlState x, ControlState y,
                                                       ControlState modifier)
 {
+  x -= m_center.x;
+  y -= m_center.y;
+
   // TODO: make the AtAngle functions work with negative angles:
   const ControlState angle = std::atan2(y, x) + MathUtil::TAU;
 

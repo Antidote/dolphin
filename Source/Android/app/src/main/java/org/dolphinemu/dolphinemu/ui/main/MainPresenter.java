@@ -4,7 +4,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.support.v4.content.LocalBroadcastManager;
+
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.dolphinemu.dolphinemu.BuildConfig;
 import org.dolphinemu.dolphinemu.R;
@@ -15,7 +16,7 @@ import org.dolphinemu.dolphinemu.services.GameFileCacheService;
 public final class MainPresenter
 {
   public static final int REQUEST_ADD_DIRECTORY = 1;
-  public static final int REQUEST_EMULATE_GAME = 2;
+  public static final int REQUEST_OPEN_FILE = 2;
 
   private final MainView mView;
   private final Context mContext;
@@ -86,6 +87,10 @@ public final class MainPresenter
       case R.id.button_add_directory:
         mView.launchFileListActivity();
         return true;
+
+      case R.id.menu_open_file:
+        mView.launchOpenFileActivity();
+        return true;
     }
 
     return false;
@@ -104,10 +109,5 @@ public final class MainPresenter
   public void onDirectorySelected(String dir)
   {
     mDirToAdd = dir;
-  }
-
-  public void refreshFragmentScreenshot(int resultCode)
-  {
-    mView.refreshFragmentScreenshot(resultCode);
   }
 }

@@ -82,11 +82,6 @@ void Host_RequestRenderWindowSize(int width, int height)
 {
 }
 
-bool Host_UINeedsControllerState()
-{
-  return false;
-}
-
 bool Host_RendererHasFocus()
 {
   return s_platform->IsWindowFocused();
@@ -105,6 +100,13 @@ void Host_UpdateProgressDialog(const char* caption, int position, int total)
 {
 }
 
+void Host_TitleChanged()
+{
+#ifdef USE_DISCORD_PRESENCE
+  Discord::UpdateDiscordPresence();
+#endif
+}
+
 static std::unique_ptr<Platform> GetPlatform(const optparse::Values& options)
 {
   std::string platform_name = static_cast<const char*>(options.get("platform"));
@@ -112,6 +114,11 @@ static std::unique_ptr<Platform> GetPlatform(const optparse::Values& options)
 #if HAVE_X11
   if (platform_name == "x11" || platform_name.empty())
     return Platform::CreateX11Platform();
+#endif
+
+#ifdef __linux__
+  if (platform_name == "fbdev" || platform_name.empty())
+    return Platform::CreateFBDevPlatform();
 #endif
 
   if (platform_name == "headless" || platform_name.empty())
@@ -128,6 +135,10 @@ int main(int argc, char* argv[])
       .help("Window platform to use [%choices]")
       .choices({
         "headless"
+#ifdef __linux__
+            ,
+            "fbdev"
+#endif
 #if HAVE_X11
             ,
             "x11"
@@ -195,7 +206,7 @@ int main(int argc, char* argv[])
   sigaction(SIGINT, &sa, nullptr);
   sigaction(SIGTERM, &sa, nullptr);
 
-  DolphinAnalytics::Instance()->ReportDolphinStart("nogui");
+  DolphinAnalytics::Instance().ReportDolphinStart("nogui");
 
   if (!BootManager::BootCore(std::move(boot), s_platform->GetWindowSystemInfo()))
   {

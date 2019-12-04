@@ -15,6 +15,7 @@
 #include <cmath>
 
 #include "Core/Core.h"
+#include "Core/HW/AddressSpace.h"
 #include "Core/PowerPC/BreakPoints.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "DolphinQt/Resources.h"
@@ -168,7 +169,8 @@ void MemoryViewWidget::Update()
     case Type::ASCII:
       update_values([&accessors](u32 address) {
         const char value = accessors->ReadU8(address);
-        return std::isprint(value) ? QString{QChar::fromLatin1(value)} : QStringLiteral(".");
+        return std::isprint(value) ? QString{QChar::fromLatin1(value)} :
+                                     QString{QChar::fromLatin1('.')};
       });
       break;
     case Type::U16:
@@ -377,7 +379,7 @@ void MemoryViewWidget::OnCopyHex()
   u64 value = accessors->ReadU64(addr);
 
   QApplication::clipboard()->setText(
-      QStringLiteral("%1").arg(value, length * 2, 16, QLatin1Char('0')).left(length * 2));
+      QStringLiteral("%1").arg(value, sizeof(u64) * 2, 16, QLatin1Char('0')).left(length * 2));
 }
 
 void MemoryViewWidget::OnContextMenu()

@@ -17,12 +17,15 @@
 #include "Core/Core.h"
 #include "Core/Debugger/PPCDebugInterface.h"
 #include "Core/Host.h"
+#include "Core/NetPlayProto.h"
 #include "Core/PowerPC/PowerPC.h"
 
 #include "DolphinQt/QtUtils/QueueOnObject.h"
 #include "DolphinQt/Settings.h"
 
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
+
+#include "UICommon/DiscordPresence.h"
 
 #include "VideoCommon/RenderBase.h"
 #include "VideoCommon/VideoConfig.h"
@@ -150,12 +153,6 @@ void Host_RequestRenderWindowSize(int w, int h)
   emit Host::GetInstance()->RequestRenderSize(w, h);
 }
 
-bool Host_UINeedsControllerState()
-{
-  return Settings::Instance().IsControllerStateNeeded() ||
-         (ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureKeyboard);
-}
-
 bool Host_UIBlocksControllerState()
 {
   return ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureKeyboard;
@@ -163,4 +160,13 @@ bool Host_UIBlocksControllerState()
 
 void Host_RefreshDSPDebuggerWindow()
 {
+}
+
+void Host_TitleChanged()
+{
+#ifdef USE_DISCORD_PRESENCE
+  // TODO: Not sure if the NetPlay check is needed.
+  if (!NetPlay::IsNetPlayRunning())
+    Discord::UpdateDiscordPresence();
+#endif
 }

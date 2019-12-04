@@ -42,8 +42,8 @@ public:
   std::unique_ptr<AbstractFramebuffer>
   CreateFramebuffer(AbstractTexture* color_attachment, AbstractTexture* depth_attachment) override;
 
-  std::unique_ptr<AbstractShader> CreateShaderFromSource(ShaderStage stage, const char* source,
-                                                         size_t length) override;
+  std::unique_ptr<AbstractShader> CreateShaderFromSource(ShaderStage stage,
+                                                         std::string_view source) override;
   std::unique_ptr<AbstractShader> CreateShaderFromBinary(ShaderStage stage, const void* data,
                                                          size_t length) override;
   std::unique_ptr<NativeVertexFormat>
@@ -83,6 +83,8 @@ public:
                              u32 groups_z) override;
   void BindBackbuffer(const ClearColor& clear_color = {}) override;
   void PresentBackbuffer() override;
+  void SetFullscreen(bool enable_fullscreen) override;
+  bool IsFullscreen() const override;
 
   // Completes the current render pass, executes the command buffer, and restores state ready for
   // next render. Use when you want to kick the current buffer to make room for new data.

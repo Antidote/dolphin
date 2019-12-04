@@ -22,12 +22,13 @@
 #include <array>
 #include <string>
 
+#include <fmt/format.h>
+
 #include "Common/CommonTypes.h"
 #include "Common/Config/Config.h"
 #include "Common/FileUtil.h"
 #include "Common/IniFile.h"
 #include "Common/Logging/Log.h"
-#include "Common/StringUtil.h"
 
 #include "Core/Boot/Boot.h"
 #include "Core/Config/MainSettings.h"
@@ -38,6 +39,7 @@
 #include "Core/Core.h"
 #include "Core/HW/EXI/EXI.h"
 #include "Core/HW/SI/SI.h"
+#include "Core/HW/SI/SI_Device.h"
 #include "Core/HW/Sram.h"
 #include "Core/HW/WiimoteReal/WiimoteReal.h"
 #include "Core/Movie.h"
@@ -211,6 +213,11 @@ void ConfigCache::RestoreConfig(SConfig* config)
 
 static ConfigCache config_cache;
 
+void SetEmulationSpeedReset(bool value)
+{
+  config_cache.bSetEmulationSpeed = value;
+}
+
 static GPUDeterminismMode ParseGPUDeterminismMode(const std::string& mode)
 {
   if (mode == "auto")
@@ -282,7 +289,7 @@ bool BootCore(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
     for (unsigned int i = 0; i < SerialInterface::MAX_SI_CHANNELS; ++i)
     {
       int source;
-      controls_section->Get(StringFromFormat("PadType%u", i), &source, -1);
+      controls_section->Get(fmt::format("PadType{}", i), &source, -1);
       if (source >= SerialInterface::SIDEVICE_NONE && source < SerialInterface::SIDEVICE_COUNT)
       {
         StartUp.m_SIDevice[i] = static_cast<SerialInterface::SIDevices>(source);
@@ -296,7 +303,7 @@ bool BootCore(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
       int source;
       for (unsigned int i = 0; i < MAX_WIIMOTES; ++i)
       {
-        controls_section->Get(StringFromFormat("WiimoteSource%u", i), &source, -1);
+        controls_section->Get(fmt::format("WiimoteSource{}", i), &source, -1);
         if (source != -1 && g_wiimote_sources[i] != (unsigned)source &&
             source >= WIIMOTE_SRC_NONE && source <= WIIMOTE_SRC_REAL)
         {
@@ -334,12 +341,14 @@ bool BootCore(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
     {
       if (Movie::IsUsingMemcard(i) && Movie::IsStartingFromClearSave() && !StartUp.bWii)
       {
-        if (File::Exists(File::GetUserPath(D_GCUSER_IDX) +
-                         StringFromFormat("Movie%s.raw", (i == 0) ? "A" : "B")))
-          File::Delete(File::GetUserPath(D_GCUSER_IDX) +
-                       StringFromFormat("Movie%s.raw", (i == 0) ? "A" : "B"));
-        if (File::Exists(File::GetUserPath(D_GCUSER_IDX) + "Movie"))
-          File::DeleteDirRecursively(File::GetUserPath(D_GCUSER_IDX) + "Movie");
+        const auto raw_path =
+            File::GetUserPath(D_GCUSER_IDX) + fmt::format("Movie{}.raw", (i == 0) ? 'A' : 'B');
+        if (File::Exists(raw_path))
+          File::Delete(raw_path);
+
+        const auto movie_path = File::GetUserPath(D_GCUSER_IDX) + "Movie";
+        if (File::Exists(movie_path))
+          File::DeleteDirRecursively(movie_path);
       }
     }
   }
@@ -355,7 +364,7 @@ bool BootCore(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
     StartUp.bCopyWiiSaveNetplay = netplay_settings.m_CopyWiiSave;
     StartUp.cpu_core = netplay_settings.m_CPUcore;
     StartUp.SelectedLanguage = netplay_settings.m_SelectedLanguage;
-    StartUp.bOverrideGCLanguage = netplay_settings.m_OverrideGCLanguage;
+    StartUp.bOverrideRegionSettings = netplay_settings.m_OverrideRegionSettings;
     StartUp.m_DSPEnableJIT = netplay_settings.m_DSPEnableJIT;
     StartUp.m_OCEnable = netplay_settings.m_OCEnable;
     StartUp.m_OCFactor = netplay_settings.m_OCFactor;
@@ -386,19 +395,44 @@ bool BootCore(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
     g_SRAM_netplay_initialized = false;
   }
 
-  const bool ntsc = DiscIO::IsNTSC(StartUp.m_region);
-
-  // Apply overrides
-  // Some NTSC GameCube games such as Baten Kaitos react strangely to
-  // language settings that would be invalid on an NTSC system
-  if (!StartUp.bOverrideGCLanguage && ntsc)
+  // Override out-of-region languages/countries to prevent games from crashing or behaving oddly
+  if (!StartUp.bOverrideRegionSettings)
   {
-    StartUp.SelectedLanguage = 0;
+    const int gc_language =
+        static_cast<int>(StartUp.GetLanguageAdjustedForRegion(false, StartUp.m_region));
+    StartUp.SelectedLanguage = gc_language - (gc_language > 0);
+
+    if (StartUp.bWii)
+    {
+      const u32 wii_language =
+          static_cast<u32>(StartUp.GetLanguageAdjustedForRegion(true, StartUp.m_region));
+      Config::SetCurrent(Config::SYSCONF_LANGUAGE, wii_language);
+
+      const u8 country_code = static_cast<u8>(Config::Get(Config::SYSCONF_COUNTRY));
+      if (StartUp.m_region != DiscIO::SysConfCountryToRegion(country_code))
+      {
+        switch (StartUp.m_region)
+        {
+        case DiscIO::Region::NTSC_J:
+          Config::SetCurrent(Config::SYSCONF_COUNTRY, 0x01);  // Japan
+          break;
+        case DiscIO::Region::NTSC_U:
+          Config::SetCurrent(Config::SYSCONF_COUNTRY, 0x31);  // United States
+          break;
+        case DiscIO::Region::PAL:
+          Config::SetCurrent(Config::SYSCONF_COUNTRY, 0x6c);  // Switzerland
+          break;
+        case DiscIO::Region::NTSC_K:
+          Config::SetCurrent(Config::SYSCONF_COUNTRY, 0x88);  // South Korea
+          break;
+        }
+      }
+    }
   }
 
   // Some NTSC Wii games such as Doc Louis's Punch-Out!! and
   // 1942 (Virtual Console) crash if the PAL60 option is enabled
-  if (StartUp.bWii && ntsc)
+  if (StartUp.bWii && DiscIO::IsNTSC(StartUp.m_region))
     Config::SetCurrent(Config::SYSCONF_PAL60, false);
 
   // Ensure any new settings are written to the SYSCONF

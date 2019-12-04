@@ -28,7 +28,7 @@ GameListModel::GameListModel(QObject* parent) : QAbstractTableModel(parent)
   connect(&Settings::Instance(), &Settings::PathRemoved, &m_tracker, &GameTracker::RemoveDirectory);
   connect(&Settings::Instance(), &Settings::GameListRefreshRequested, &m_tracker,
           &GameTracker::RefreshAll);
-  connect(&Settings::Instance(), &Settings::TitleDBReloadRequested, this,
+  connect(&Settings::Instance(), &Settings::TitleDBReloadRequested,
           [this] { m_title_database = Core::TitleDatabase(); });
 
   for (const QString& dir : Settings::Instance().GetPaths())
@@ -124,13 +124,17 @@ QVariant GameListModel::data(const QModelIndex& index, int role) const
   case COL_DESCRIPTION:
     if (role == Qt::DisplayRole || role == Qt::InitialSortOrderRole)
     {
-      return QString::fromStdString(game.GetDescription())
+      return QString::fromStdString(
+                 game.GetDescription(UICommon::GameFile::Variant::LongAndPossiblyCustom))
           .replace(QLatin1Char('\n'), QLatin1Char(' '));
     }
     break;
   case COL_MAKER:
     if (role == Qt::DisplayRole || role == Qt::InitialSortOrderRole)
-      return QString::fromStdString(game.GetMaker());
+    {
+      return QString::fromStdString(
+          game.GetMaker(UICommon::GameFile::Variant::LongAndPossiblyCustom));
+    }
     break;
   case COL_FILE_NAME:
     if (role == Qt::DisplayRole || role == Qt::InitialSortOrderRole)
@@ -199,6 +203,8 @@ int GameListModel::rowCount(const QModelIndex& parent) const
 
 int GameListModel::columnCount(const QModelIndex& parent) const
 {
+  if (parent.isValid())
+    return 0;
   return NUM_COLS;
 }
 
@@ -297,7 +303,7 @@ void GameListModel::UpdateGame(const std::shared_ptr<const UICommon::GameFile>& 
   else
   {
     m_games[index] = game;
-    emit dataChanged(createIndex(index, 0), createIndex(index + 1, columnCount(QModelIndex())));
+    emit dataChanged(createIndex(index, 0), createIndex(index, columnCount(QModelIndex()) - 1));
   }
 }
 

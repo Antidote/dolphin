@@ -13,7 +13,7 @@
 #include <functional>
 #include <memory>
 #include <string>
-#include <vector>
+#include <string_view>
 
 #include "Common/CommonTypes.h"
 
@@ -26,6 +26,7 @@ bool GetIsThrottlerTempDisabled();
 void SetIsThrottlerTempDisabled(bool disable);
 
 void Callback_VideoCopiedToXFB(bool video_update);
+void FrameUpdate();
 
 enum class State
 {
@@ -43,7 +44,7 @@ void Shutdown();
 void DeclareAsCPUThread();
 void UndeclareAsCPUThread();
 
-std::string StopMessage(bool, const std::string&);
+std::string StopMessage(bool main_thread, std::string_view message);
 
 bool IsRunning();
 bool IsRunningAndStarted();       // is running and the CPU loop has been entered
@@ -56,14 +57,15 @@ bool WantsDeterminism();
 // [NOT THREADSAFE] For use by Host only
 void SetState(State state);
 State GetState();
+void WaitUntilDoneBooting();
 
 void SaveScreenShot(bool wait_for_completion = false);
-void SaveScreenShot(const std::string& name, bool wait_for_completion = false);
+void SaveScreenShot(std::string_view name, bool wait_for_completion = false);
 
 void Callback_WiimoteInterruptChannel(int number, u16 channel_id, const u8* data, u32 size);
 
 // This displays messages in a user-visible way.
-void DisplayMessage(const std::string& message, int time_in_ms);
+void DisplayMessage(std::string message, int time_in_ms);
 
 void FrameUpdateOnCPUThread();
 void OnFrameEnd();
@@ -81,6 +83,10 @@ void UpdateTitle();
 //
 // This should only be called from the CPU thread or the host thread.
 void RunAsCPUThread(std::function<void()> function);
+
+// Run a function on the CPU thread, asynchronously.
+// This is only valid to call from the host thread, since it uses PauseAndLock() internally.
+void RunOnCPUThread(std::function<void()> function, bool wait_for_completion);
 
 // for calling back into UI code without introducing a dependency on it in core
 using StateChangedCallbackFunc = std::function<void(Core::State)>;
@@ -105,5 +111,7 @@ void QueueHostJob(std::function<void()> job, bool run_during_stop = false);
 void HostDispatchJobs();
 
 void DoFrameStep();
+
+void UpdateInputGate();
 
 }  // namespace Core

@@ -38,14 +38,7 @@ RegisterWidget::RegisterWidget(QWidget* parent) : QDockWidget(parent)
   PopulateTable();
   ConnectWidgets();
 
-  connect(Host::GetInstance(), &Host::UpdateDisasmDialog, this, [this] {
-    if (Settings::Instance().IsDebugModeEnabled() && Core::GetState() == Core::State::Paused)
-    {
-      m_updating = true;
-      emit UpdateTable();
-      m_updating = false;
-    }
-  });
+  connect(Host::GetInstance(), &Host::UpdateDisasmDialog, this, &RegisterWidget::Update);
 
   connect(&Settings::Instance(), &Settings::RegistersVisibilityChanged,
           [this](bool visible) { setHidden(!visible); });
@@ -68,6 +61,11 @@ void RegisterWidget::closeEvent(QCloseEvent*)
   Settings::Instance().SetRegistersVisible(false);
 }
 
+void RegisterWidget::showEvent(QShowEvent* event)
+{
+  Update();
+}
+
 void RegisterWidget::CreateWidgets()
 {
   m_table = new QTableWidget;
@@ -83,7 +81,7 @@ void RegisterWidget::CreateWidgets()
   QStringList empty_list;
 
   for (auto i = 0; i < 9; i++)
-    empty_list << QStringLiteral("");
+    empty_list << QString{};
 
   m_table->setHorizontalHeaderLabels(empty_list);
 
@@ -125,8 +123,10 @@ void RegisterWidget::ShowContextMenu()
     // It's not related to timekeeping devices.
     menu->addAction(tr("Add to &watch"), this,
                     [this, item] { emit RequestMemoryBreakpoint(item->GetValue()); });
-    menu->addAction(tr("View &memory"));
-    menu->addAction(tr("View &code"));
+    menu->addAction(tr("View &memory"), this,
+                    [this, item] { emit RequestViewInMemory(item->GetValue()); });
+    menu->addAction(tr("View &code"), this,
+                    [this, item] { emit RequestViewInCode(item->GetValue()); });
 
     menu->addSeparator();
 
@@ -374,4 +374,14 @@ void RegisterWidget::AddRegister(int row, int column, RegisterType type, std::st
   }
 
   connect(this, &RegisterWidget::UpdateTable, [value] { value->RefreshValue(); });
+}
+
+void RegisterWidget::Update()
+{
+  if (isVisible() && Core::GetState() == Core::State::Paused)
+  {
+    m_updating = true;
+    emit UpdateTable();
+    m_updating = false;
+  }
 }

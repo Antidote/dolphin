@@ -6,9 +6,13 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.support.v4.app.FragmentTransaction;
-import android.support.v4.content.LocalBroadcastManager;
-import android.support.v7.app.AppCompatActivity;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
+import androidx.fragment.app.FragmentTransaction;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import androidx.appcompat.app.AppCompatActivity;
+
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -64,7 +68,7 @@ public final class SettingsActivity extends AppCompatActivity implements Setting
   }
 
   @Override
-  protected void onSaveInstanceState(Bundle outState)
+  protected void onSaveInstanceState(@NonNull Bundle outState)
   {
     // Critical: If super method is not called, rotations will be busted.
     super.onSaveInstanceState(outState);
@@ -96,7 +100,6 @@ public final class SettingsActivity extends AppCompatActivity implements Setting
   {
     mPresenter.onBackPressed();
   }
-
 
   @Override
   public void showSettingsFragment(MenuTag menuTag, Bundle extras, boolean addToStack,
@@ -181,6 +184,18 @@ public final class SettingsActivity extends AppCompatActivity implements Setting
   public void showExternalStorageNotMountedHint()
   {
     Toast.makeText(this, R.string.external_storage_not_mounted, Toast.LENGTH_SHORT)
+            .show();
+  }
+
+  @Override
+  public void showGameIniJunkDeletionQuestion()
+  {
+    new AlertDialog.Builder(this)
+            .setTitle(getString(R.string.game_ini_junk_title))
+            .setMessage(getString(R.string.game_ini_junk_question))
+            .setPositiveButton(R.string.yes, (dialogInterface, i) -> mPresenter.clearSettings())
+            .setNegativeButton(R.string.no, null)
+            .create()
             .show();
   }
 

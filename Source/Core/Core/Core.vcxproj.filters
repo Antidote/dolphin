@@ -191,6 +191,7 @@
     <ClCompile Include="Core.cpp" />
     <ClCompile Include="CoreTiming.cpp" />
     <ClCompile Include="HotkeyManager.cpp" />
+    <ClCompile Include="LibusbUtils.cpp" />
     <ClCompile Include="MemTools.cpp" />
     <ClCompile Include="Movie.cpp" />
     <ClCompile Include="NetPlayClient.cpp" />
@@ -480,6 +481,9 @@
     <ClCompile Include="HW\Sram.cpp">
       <Filter>HW %28Flipper/Hollywood%29\EXI - Expansion Interface</Filter>
     </ClCompile>
+    <ClCompile Include="HW\GCMemcard\GCIFile.cpp">
+      <Filter>HW %28Flipper/Hollywood%29\GCMemcard</Filter>
+    </ClCompile>
     <ClCompile Include="HW\GCMemcard\GCMemcard.cpp">
       <Filter>HW %28Flipper/Hollywood%29\GCMemcard</Filter>
     </ClCompile>
@@ -719,6 +723,9 @@
       <Filter>IOS</Filter>
     </ClCompile>
     <ClCompile Include="IOS\DeviceStub.cpp">
+      <Filter>IOS</Filter>
+    </ClCompile>
+    <ClCompile Include="IOS\DolphinDevice.cpp">
       <Filter>IOS</Filter>
     </ClCompile>
     <ClCompile Include="IOS\DI\DI.cpp">
@@ -961,6 +968,7 @@
     <ClCompile Include="PrimeMemoryDumping\common\MemoryBuffer.cpp">
       <Filter>PrimeMemoryDumping\common</Filter>
     </ClCompile>
+    <ClCompile Include="PowerPC\ConditionRegister.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BootManager.h" />
@@ -969,6 +977,7 @@
     <ClInclude Include="CoreTiming.h" />
     <ClInclude Include="Host.h" />
     <ClInclude Include="HotkeyManager.h" />
+    <ClInclude Include="LibusbUtils.h" />
     <ClInclude Include="MemTools.h" />
     <ClInclude Include="Movie.h" />
     <ClInclude Include="NetPlayClient.h" />
@@ -1205,6 +1214,9 @@
     </ClInclude>
     <ClInclude Include="HW\Sram.h">
       <Filter>HW %28Flipper/Hollywood%29\EXI - Expansion Interface</Filter>
+    </ClInclude>
+    <ClInclude Include="HW\GCMemcard\GCIFile.h">
+      <Filter>HW %28Flipper/Hollywood%29\GCMemcard</Filter>
     </ClInclude>
     <ClInclude Include="HW\GCMemcard\GCMemcard.h">
       <Filter>HW %28Flipper/Hollywood%29\GCMemcard</Filter>
@@ -1458,6 +1470,9 @@
       <Filter>IOS\USB\Bluetooth</Filter>
     </ClInclude>
     <ClInclude Include="IOS\DeviceStub.h">
+      <Filter>IOS</Filter>
+    </ClInclude>
+    <ClInclude Include="IOS\DolphinDevice.h">
       <Filter>IOS</Filter>
     </ClInclude>
     <ClInclude Include="IOS\DI\DI.h">

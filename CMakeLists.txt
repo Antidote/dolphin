@@ -52,8 +52,8 @@ option(OPROFILING "Enable profiling" OFF)
 # TODO: Add DSPSpy
 option(DSPTOOL "Build dsptool" OFF)
 
-# Enable SDL for default on operating systems that aren't OSX, Android, Linux or Windows.
-if(NOT APPLE AND NOT ANDROID AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT MSVC)
+# Enable SDL for default on operating systems that aren't Android, Linux or Windows.
+if(NOT ANDROID AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT MSVC)
   option(ENABLE_SDL "Enables SDL as a generic controller backend" ON)
 else()
   option(ENABLE_SDL "Enables SDL as a generic controller backend" OFF)
@@ -423,7 +423,8 @@ endif()
 include(CheckLib)
 include(CheckCXXSourceRuns)
 
-set(OpenGL_GL_PREFERENCE GLVND)
+set(OpenGL_GL_PREFERENCE GLVND CACHE STRING "Linux-only: if GLVND, use the vendor-neutral GL libraries (default). If LEGACY, use the legacy ones (might be necessary to have optirun/primusrun work)")
+set_property(CACHE OpenGL_GL_PREFERENCE PROPERTY STRINGS GLVND LEGACY)
 find_package(OpenGL)
 if (OPENGL_GL)
   include_directories(${OPENGL_INCLUDE_DIR})
@@ -530,6 +531,7 @@ if (_M_X86)
   add_subdirectory(Externals/Bochs_disasm)
 endif()
 add_subdirectory(Externals/cpp-optparse)
+add_subdirectory(Externals/fmt EXCLUDE_FROM_ALL)
 add_subdirectory(Externals/glslang)
 add_subdirectory(Externals/imgui)
 

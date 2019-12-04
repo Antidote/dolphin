@@ -3,6 +3,7 @@
 #include "VideoCommon/VideoCommon.h"
 
 enum class EFBReinterpretType;
+enum class TextureFormat;
 
 namespace FramebufferShaderGen
 {
@@ -28,5 +29,9 @@ std::string GenerateClearVertexShader();
 std::string GenerateEFBPokeVertexShader();
 std::string GenerateColorPixelShader();
 std::string GenerateFormatConversionShader(EFBReinterpretType convtype, u32 samples);
+std::string GenerateTextureReinterpretShader(TextureFormat from_format, TextureFormat to_format);
+std::string GenerateEFBRestorePixelShader();
+std::string GenerateImGuiVertexShader();
+std::string GenerateImGuiPixelShader();
 
 }  // namespace FramebufferShaderGen

@@ -2,6 +2,8 @@
 // Licensed under GPLv2+
 // Refer to the license.txt file included.
 
+#include "VideoBackends/Software/Tev.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -9,13 +11,13 @@
 #include "Common/CommonTypes.h"
 #include "VideoBackends/Software/DebugUtil.h"
 #include "VideoBackends/Software/EfbInterface.h"
-#include "VideoBackends/Software/Tev.h"
 #include "VideoBackends/Software/TextureSampler.h"
 
 #include "VideoCommon/BoundingBox.h"
 #include "VideoCommon/PerfQueryBase.h"
 #include "VideoCommon/PixelShaderManager.h"
 #include "VideoCommon/Statistics.h"
+#include "VideoCommon/VideoCommon.h"
 #include "VideoCommon/VideoConfig.h"
 #include "VideoCommon/XFMemory.h"
 
@@ -568,7 +570,7 @@ void Tev::Draw()
   ASSERT(Position[0] >= 0 && Position[0] < EFB_WIDTH);
   ASSERT(Position[1] >= 0 && Position[1] < EFB_HEIGHT);
 
-  INCSTAT(stats.thisFrame.tevPixelsIn);
+  INCSTAT(g_stats.this_frame.tev_pixels_in);
 
   // initial color values
   for (int i = 0; i < 4; i++)
@@ -869,7 +871,7 @@ void Tev::Draw()
   }
 #endif
 
-  INCSTAT(stats.thisFrame.tevPixelsOut);
+  INCSTAT(g_stats.this_frame.tev_pixels_out);
   EfbInterface::IncPerfCounterQuadCount(PQ_BLEND_INPUT);
 
   EfbInterface::BlendTev(Position[0], Position[1], output);

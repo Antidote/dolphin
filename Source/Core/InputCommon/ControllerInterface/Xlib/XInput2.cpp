@@ -10,6 +10,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <fmt/format.h>
+
 #include "InputCommon/ControllerInterface/Xlib/XInput2.h"
 
 #include "Common/StringUtil.h"
@@ -46,9 +48,7 @@
 // more responsive. This might be useful as a user-customizable option.
 #define MOUSE_AXIS_SMOOTHING 1.5f
 
-namespace ciface
-{
-namespace XInput2
+namespace ciface::XInput2
 {
 // This function will add zero or more KeyboardMouse objects to devices.
 void PopulateDevices(void* const hwnd)
@@ -340,7 +340,7 @@ ControlState KeyboardMouse::Key::GetState() const
 KeyboardMouse::Button::Button(unsigned int index, unsigned int* buttons)
     : m_buttons(buttons), m_index(index)
 {
-  name = StringFromFormat("Click %d", m_index + 1);
+  name = fmt::format("Click {}", m_index + 1);
 }
 
 ControlState KeyboardMouse::Button::GetState() const
@@ -351,7 +351,7 @@ ControlState KeyboardMouse::Button::GetState() const
 KeyboardMouse::Cursor::Cursor(u8 index, bool positive, const float* cursor)
     : m_cursor(cursor), m_index(index), m_positive(positive)
 {
-  name = std::string("Cursor ") + (char)('X' + m_index) + (m_positive ? '+' : '-');
+  name = fmt::format("Cursor {}{}", static_cast<char>('X' + m_index), (m_positive ? '+' : '-'));
 }
 
 ControlState KeyboardMouse::Cursor::GetState() const
@@ -362,12 +362,11 @@ ControlState KeyboardMouse::Cursor::GetState() const
 KeyboardMouse::Axis::Axis(u8 index, bool positive, const float* axis)
     : m_axis(axis), m_index(index), m_positive(positive)
 {
-  name = std::string("Axis ") + (char)('X' + m_index) + (m_positive ? '+' : '-');
+  name = fmt::format("Axis {}{}", static_cast<char>('X' + m_index), (m_positive ? '+' : '-'));
 }
 
 ControlState KeyboardMouse::Axis::GetState() const
 {
   return std::max(0.0f, *m_axis / (m_positive ? MOUSE_AXIS_SENSITIVITY : -MOUSE_AXIS_SENSITIVITY));
 }
-}  // namespace XInput2
-}  // namespace ciface
+}  // namespace ciface::XInput2

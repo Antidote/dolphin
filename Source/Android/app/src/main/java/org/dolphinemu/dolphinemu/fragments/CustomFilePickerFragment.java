@@ -2,8 +2,10 @@ package org.dolphinemu.dolphinemu.fragments;
 
 import android.net.Uri;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.v4.content.FileProvider;
+
+import androidx.annotation.NonNull;
+import androidx.core.content.FileProvider;
+
 import android.view.View;
 import android.widget.TextView;
 
@@ -19,7 +21,7 @@ import java.util.Set;
 public class CustomFilePickerFragment extends FilePickerFragment
 {
   private static final Set<String> extensions = new HashSet<>(Arrays.asList(
-          "gcm", "tgc", "iso", "ciso", "gcz", "wbfs", "wad", "dol", "elf"));
+          "gcm", "tgc", "iso", "ciso", "gcz", "wbfs", "wad", "dol", "elf", "dff"));
 
   @NonNull
   @Override

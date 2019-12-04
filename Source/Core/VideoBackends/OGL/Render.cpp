@@ -702,7 +702,8 @@ Renderer::Renderer(std::unique_ptr<GLContext> main_gl_context, float backbuffer_
       glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, true);
       glDebugMessageCallbackARB(ErrorCallback, nullptr);
     }
-    if (LogManager::GetInstance()->IsEnabled(LogTypes::HOST_GPU, LogTypes::LERROR))
+    if (Common::Log::LogManager::GetInstance()->IsEnabled(Common::Log::HOST_GPU,
+                                                          Common::Log::LERROR))
     {
       glEnable(GL_DEBUG_OUTPUT);
     }
@@ -832,9 +833,9 @@ std::unique_ptr<AbstractFramebuffer> Renderer::CreateFramebuffer(AbstractTexture
 }
 
 std::unique_ptr<AbstractShader> Renderer::CreateShaderFromSource(ShaderStage stage,
-                                                                 const char* source, size_t length)
+                                                                 std::string_view source)
 {
-  return OGLShader::CreateFromSource(stage, source, length);
+  return OGLShader::CreateFromSource(stage, source);
 }
 
 std::unique_ptr<AbstractShader> Renderer::CreateShaderFromBinary(ShaderStage stage,
@@ -978,19 +979,19 @@ void Renderer::ClearScreen(const MathUtil::Rectangle<int>& rc, bool colorEnable,
   BPFunctions::SetScissor();
 }
 
-void Renderer::RenderXFBToScreen(const AbstractTexture* texture, const MathUtil::Rectangle<int>& rc)
+void Renderer::RenderXFBToScreen(const MathUtil::Rectangle<int>& target_rc,
+                                 const AbstractTexture* source_texture,
+                                 const MathUtil::Rectangle<int>& source_rc)
 {
   // Quad-buffered stereo is annoying on GL.
   if (g_ActiveConfig.stereo_mode != StereoMode::QuadBuffer)
-    return ::Renderer::RenderXFBToScreen(texture, rc);
-
-  const auto target_rc = GetTargetRectangle();
+    return ::Renderer::RenderXFBToScreen(target_rc, source_texture, source_rc);
 
   glDrawBuffer(GL_BACK_LEFT);
-  m_post_processor->BlitFromTexture(target_rc, rc, texture, 0);
+  m_post_processor->BlitFromTexture(target_rc, source_rc, source_texture, 0);
 
   glDrawBuffer(GL_BACK_RIGHT);
-  m_post_processor->BlitFromTexture(target_rc, rc, texture, 1);
+  m_post_processor->BlitFromTexture(target_rc, source_rc, source_texture, 1);
 
   glDrawBuffer(GL_BACK);
 }
@@ -1053,10 +1054,15 @@ void Renderer::PresentBackbuffer()
 {
   if (g_ogl_config.bSupportsDebug)
   {
-    if (LogManager::GetInstance()->IsEnabled(LogTypes::HOST_GPU, LogTypes::LERROR))
+    if (Common::Log::LogManager::GetInstance()->IsEnabled(Common::Log::HOST_GPU,
+                                                          Common::Log::LERROR))
+    {
       glEnable(GL_DEBUG_OUTPUT);
+    }
     else
+    {
       glDisable(GL_DEBUG_OUTPUT);
+    }
   }
 
   // Swap the back and front buffers, presenting the image.

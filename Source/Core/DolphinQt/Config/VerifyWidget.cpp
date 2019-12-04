@@ -29,6 +29,7 @@ VerifyWidget::VerifyWidget(std::shared_ptr<DiscIO::Volume> volume) : m_volume(st
   layout->addWidget(m_problems);
   layout->addWidget(m_summary_text);
   layout->addLayout(m_hash_layout);
+  layout->addLayout(m_redump_layout);
   layout->addWidget(m_verify_button);
 
   layout->setStretchFactor(m_problems, 5);
@@ -55,8 +56,21 @@ void VerifyWidget::CreateWidgets()
   std::tie(m_md5_checkbox, m_md5_line_edit) = AddHashLine(m_hash_layout, tr("MD5:"));
   std::tie(m_sha1_checkbox, m_sha1_line_edit) = AddHashLine(m_hash_layout, tr("SHA-1:"));
 
+  m_redump_layout = new QFormLayout;
+  if (DiscIO::IsDisc(m_volume->GetVolumeType()))
+  {
+    std::tie(m_redump_checkbox, m_redump_line_edit) =
+        AddHashLine(m_redump_layout, tr("Redump.org Status:"));
+  }
+  else
+  {
+    m_redump_checkbox = nullptr;
+    m_redump_line_edit = nullptr;
+  }
+
   // Extend line edits to their maximum possible widths (needed on macOS)
   m_hash_layout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+  m_redump_layout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 
   m_verify_button = new QPushButton(tr("Verify Integrity"), this);
 }
@@ -80,6 +94,9 @@ std::pair<QCheckBox*, QLineEdit*> VerifyWidget::AddHashLine(QFormLayout* layout,
 void VerifyWidget::ConnectWidgets()
 {
   connect(m_verify_button, &QPushButton::clicked, this, &VerifyWidget::Verify);
+
+  connect(m_md5_checkbox, &QCheckBox::stateChanged, this, &VerifyWidget::UpdateRedumpEnabled);
+  connect(m_sha1_checkbox, &QCheckBox::stateChanged, this, &VerifyWidget::UpdateRedumpEnabled);
 }
 
 static void SetHash(QLineEdit* line_edit, const std::vector<u8>& hash)
@@ -89,27 +106,42 @@ static void SetHash(QLineEdit* line_edit, const std::vector<u8>& hash)
   line_edit->setText(QString::fromLatin1(byte_array.toHex()));
 }
 
+bool VerifyWidget::CanVerifyRedump() const
+{
+  // We don't allow Redump verification with CRC32 only since generating a collision is too easy
+  return m_md5_checkbox->isChecked() || m_sha1_checkbox->isChecked();
+}
+
+void VerifyWidget::UpdateRedumpEnabled()
+{
+  if (m_redump_checkbox)
+    m_redump_checkbox->setEnabled(CanVerifyRedump());
+}
+
 void VerifyWidget::Verify()
 {
+  const bool redump_verification =
+      CanVerifyRedump() && m_redump_checkbox && m_redump_checkbox->isChecked();
+
   DiscIO::VolumeVerifier verifier(
-      *m_volume,
+      *m_volume, redump_verification,
       {m_crc32_checkbox->isChecked(), m_md5_checkbox->isChecked(), m_sha1_checkbox->isChecked()});
 
   // We have to divide the number of processed bytes with something so it won't make ints overflow
   constexpr int DIVISOR = 0x100;
 
-  QProgressDialog* progress = new QProgressDialog(tr("Verifying"), tr("Cancel"), 0,
-                                                  verifier.GetTotalBytes() / DIVISOR, this);
-  progress->setWindowTitle(tr("Verifying"));
-  progress->setWindowFlags(progress->windowFlags() & ~Qt::WindowContextHelpButtonHint);
-  progress->setMinimumDuration(500);
-  progress->setWindowModality(Qt::WindowModal);
+  QProgressDialog progress(tr("Verifying"), tr("Cancel"), 0, verifier.GetTotalBytes() / DIVISOR,
+                           this);
+  progress.setWindowTitle(tr("Verifying"));
+  progress.setWindowFlags(progress.windowFlags() & ~Qt::WindowContextHelpButtonHint);
+  progress.setMinimumDuration(500);
+  progress.setWindowModality(Qt::WindowModal);
 
   verifier.Start();
   while (verifier.GetBytesProcessed() != verifier.GetTotalBytes())
   {
-    progress->setValue(verifier.GetBytesProcessed() / DIVISOR);
-    if (progress->wasCanceled())
+    progress.setValue(verifier.GetBytesProcessed() / DIVISOR);
+    if (progress.wasCanceled())
       return;
 
     verifier.Process();
@@ -117,7 +149,7 @@ void VerifyWidget::Verify()
   verifier.Finish();
 
   DiscIO::VolumeVerifier::Result result = verifier.GetResult();
-  progress->setValue(verifier.GetBytesProcessed() / DIVISOR);
+  progress.setValue(verifier.GetBytesProcessed() / DIVISOR);
 
   m_summary_text->setText(QString::fromStdString(result.summary_text));
 
@@ -138,6 +170,8 @@ void VerifyWidget::Verify()
     case DiscIO::VolumeVerifier::Severity::High:
       severity = tr("High");
       break;
+    case DiscIO::VolumeVerifier::Severity::None:
+      break;
     }
 
     SetProblemCellText(i, 0, QString::fromStdString(problem.text));
@@ -147,6 +181,9 @@ void VerifyWidget::Verify()
   SetHash(m_crc32_line_edit, result.hashes.crc32);
   SetHash(m_md5_line_edit, result.hashes.md5);
   SetHash(m_sha1_line_edit, result.hashes.sha1);
+
+  if (m_redump_line_edit)
+    m_redump_line_edit->setText(QString::fromStdString(result.redump.message));
 }
 
 void VerifyWidget::SetProblemCellText(int row, int column, QString text)

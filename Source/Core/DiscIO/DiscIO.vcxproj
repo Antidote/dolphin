@@ -12,12 +12,12 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{160BDC25-5626-4B0D-BDD8-2953D9777FB5}</ProjectGuid>
-    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
@@ -57,7 +57,6 @@
     <ClCompile Include="VolumeWii.cpp" />
     <ClCompile Include="WbfsBlob.cpp" />
     <ClCompile Include="WiiSaveBanner.cpp" />
-    <ClCompile Include="WiiWad.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Blob.h" />
@@ -81,7 +80,6 @@
     <ClInclude Include="VolumeWii.h" />
     <ClInclude Include="WbfsBlob.h" />
     <ClInclude Include="WiiSaveBanner.h" />
-    <ClInclude Include="WiiWad.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="CMakeLists.txt" />
@@ -95,6 +93,9 @@
     </ProjectReference>
     <ProjectReference Include="$(CoreDir)Common\Common.vcxproj">
       <Project>{2e6c348c-c75c-4d94-8d1e-9c1fcbf3efe4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="$(ExternalsDir)pugixml\pugixml.vcxproj">
+      <Project>{38fee76f-f347-484b-949c-b4649381cffb}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

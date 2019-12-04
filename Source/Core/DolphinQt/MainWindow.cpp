@@ -30,6 +30,7 @@
 #include <qpa/qplatformnativeinterface.h>
 #endif
 
+#include "Common/ScopeGuard.h"
 #include "Common/Version.h"
 #include "Common/WindowSystemInfo.h"
 
@@ -44,6 +45,7 @@
 #include "Core/HW/GCKeyboard.h"
 #include "Core/HW/GCPad.h"
 #include "Core/HW/ProcessorInterface.h"
+#include "Core/HW/SI/SI_Device.h"
 #include "Core/HW/Wiimote.h"
 #include "Core/HW/WiimoteEmu/WiimoteEmu.h"
 #include "Core/HotkeyManager.h"
@@ -83,6 +85,7 @@
 #include "DolphinQt/NetPlay/NetPlayBrowser.h"
 #include "DolphinQt/NetPlay/NetPlayDialog.h"
 #include "DolphinQt/NetPlay/NetPlaySetupDialog.h"
+#include "DolphinQt/QtUtils/FileOpenEventFilter.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/QtUtils/QueueOnObject.h"
 #include "DolphinQt/QtUtils/RunOnObject.h"
@@ -335,6 +338,12 @@ void MainWindow::InitCoreCallbacks()
   });
   installEventFilter(this);
   m_render_widget->installEventFilter(this);
+
+  // Handle file open events
+  auto* filter = new FileOpenEventFilter(QGuiApplication::instance());
+  connect(filter, &FileOpenEventFilter::fileOpened, this, [=](const QString& file_name) {
+    StartGame(BootParameters::GenerateFromFile(file_name.toStdString()));
+  });
 }
 
 static void InstallHotkeyFilter(QWidget* dialog)
@@ -386,6 +395,11 @@ void MainWindow::CreateComponents()
           [this](u32 addr) { m_breakpoint_widget->AddAddressMBP(addr); });
   connect(m_register_widget, &RegisterWidget::RequestMemoryBreakpoint,
           [this](u32 addr) { m_breakpoint_widget->AddAddressMBP(addr); });
+  connect(m_register_widget, &RegisterWidget::RequestViewInMemory, m_memory_widget,
+          [this](u32 addr) { m_memory_widget->SetAddress(addr); });
+  connect(m_register_widget, &RegisterWidget::RequestViewInCode, m_code_widget, [this](u32 addr) {
+    m_code_widget->SetAddress(addr, CodeViewWidget::SetAddressUpdate::WithUpdate);
+  });
 
   connect(m_code_widget, &CodeWidget::BreakpointsChanged, m_breakpoint_widget,
           &BreakpointWidget::Update);
@@ -649,7 +663,7 @@ QStringList MainWindow::PromptFileNames()
   auto& settings = Settings::Instance().GetQSettings();
   QStringList paths = QFileDialog::getOpenFileNames(
       this, tr("Select a File"),
-      settings.value(QStringLiteral("mainwindow/lastdir"), QStringLiteral("")).toString(),
+      settings.value(QStringLiteral("mainwindow/lastdir"), QString{}).toString(),
       tr("All GC/Wii files (*.elf *.dol *.gcm *.iso *.tgc *.wbfs *.ciso *.gcz *.wad *.dff *.m3u);;"
          "All Files (*)"));
 
@@ -772,6 +786,11 @@ bool MainWindow::RequestStop()
 
   if (SConfig::GetInstance().bConfirmStop)
   {
+    if (std::exchange(m_stop_confirm_showing, true))
+      return true;
+
+    Common::ScopeGuard confirm_lock([this] { m_stop_confirm_showing = false; });
+
     const Core::State state = Core::GetState();
 
     // Only pause the game, if NetPlay is not running
@@ -785,7 +804,8 @@ bool MainWindow::RequestStop()
         m_stop_requested ? tr("A shutdown is already in progress. Unsaved data "
                               "may be lost if you stop the current emulation "
                               "before it completes. Force stop?") :
-                           tr("Do you want to stop the current emulation?"));
+                           tr("Do you want to stop the current emulation?"),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::NoButton, Qt::ApplicationModal);
 
     if (confirm != QMessageBox::Yes)
     {
@@ -1175,8 +1195,7 @@ void MainWindow::StateLoadSlot()
 
 void MainWindow::StateSaveSlot()
 {
-  State::Save(m_state_slot, true);
-  m_menu_bar->UpdateStateSlotMenu();
+  State::Save(m_state_slot);
 }
 
 void MainWindow::StateLoadSlotAt(int slot)
@@ -1191,8 +1210,7 @@ void MainWindow::StateLoadLastSavedAt(int slot)
 
 void MainWindow::StateSaveSlotAt(int slot)
 {
-  State::Save(slot, true);
-  m_menu_bar->UpdateStateSlotMenu();
+  State::Save(slot);
 }
 
 void MainWindow::StateLoadUndo()
@@ -1294,7 +1312,8 @@ bool MainWindow::NetPlayJoin()
   const std::string traversal_host = Config::Get(Config::NETPLAY_TRAVERSAL_SERVER);
   const u16 traversal_port = Config::Get(Config::NETPLAY_TRAVERSAL_PORT);
   const std::string nickname = Config::Get(Config::NETPLAY_NICKNAME);
-  const bool host_input_authority = Config::Get(Config::NETPLAY_HOST_INPUT_AUTHORITY);
+  const std::string network_mode = Config::Get(Config::NETPLAY_NETWORK_MODE);
+  const bool host_input_authority = network_mode == "hostinputauthority" || network_mode == "golf";
 
   if (server)
   {
@@ -1707,7 +1726,8 @@ void MainWindow::OnUpdateProgressDialog(QString title, int progress, int total)
 
 void MainWindow::Show()
 {
-  QWidget::show();
+  if (!Settings::Instance().IsBatchModeEnabled())
+    QWidget::show();
 
   // If the booting of a game was requested on start up, do that now
   if (m_pending_boot != nullptr)
