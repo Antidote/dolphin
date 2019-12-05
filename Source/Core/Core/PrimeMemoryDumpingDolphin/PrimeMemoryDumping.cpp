@@ -45,7 +45,7 @@ static std::mutex s_active_db_lock;
     std::vector<int> loadFrames; // Track all load times for each room so we can get average load times.
   };
 
-  static bool initalized = false;
+  static bool initialized = false;
 
   int timeToFrames(double time) {
     return round(time * 60);
@@ -72,8 +72,8 @@ static std::mutex s_active_db_lock;
   void ShowMessages();
 
   void DumpMemoryForFrame() {
-    if (!initalized) {
-      initalized = true;
+    if (!initialized) {
+        initialized = true;
       LoadDatabase();
     }
 
@@ -292,6 +292,9 @@ static std::mutex s_active_db_lock;
       fclose(file);
   }
   void SaveDatabase() {
+      if (!initialized)
+          return;
+
       std::lock_guard<std::mutex> db_lock(s_active_db_lock);
       INFO_LOG(PRIME, "Saving Area Load Database");
       std::string db_path = File::GetUserPath(D_DUMP_IDX) + "~" + db_name.data();
@@ -308,5 +311,6 @@ static std::mutex s_active_db_lock;
 
       fclose(file);
       File::Rename(db_path, File::GetUserPath(D_DUMP_IDX) + db_name.data());
+      initialized = false;
   }
 }
